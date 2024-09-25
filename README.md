@@ -6,7 +6,7 @@ Docker environment for practicing pentesting techniques about SQL injection.
 ## Quick Start
 
 ```
-git clone https://github.com/ommadawn46/sqli-playground
+git clone https://github.com/alex-pancho/sqli-playground
 cd sqli-playground
 docker-compose up
 ```
